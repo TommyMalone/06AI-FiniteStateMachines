@@ -154,7 +154,19 @@ public class Patrol : State
 
     public override void Enter()
     {
-        _currentWaypointIndex = 0;
+        float lastDist = Mathf.Infinity;
+        for (int foundWaypointIndex = 0; foundWaypointIndex < GameEnvironment.Singleton.Checkpoints.Count; foundWaypointIndex++)
+        {
+            GameObject foundWaypoint = GameEnvironment.Singleton.Checkpoints[foundWaypointIndex];
+            float distanceToWaypoint = Vector3.Distance(Npc.transform.position, foundWaypoint.transform.position);
+            if (distanceToWaypoint < lastDist)
+            {
+                _currentWaypointIndex = foundWaypointIndex;
+                lastDist = distanceToWaypoint;
+            }
+        }
+        
+        Agent.SetDestination(GameEnvironment.Singleton.Checkpoints[_currentWaypointIndex].transform.position);
         Anim.SetTrigger("isWalking");
         base.Enter();
     }
