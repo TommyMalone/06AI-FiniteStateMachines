@@ -122,6 +122,11 @@ public class Idle : State
     
     public override void Update()
     {
+        if (CanSeePlayer())
+        {
+            NextState = new Pursue(Npc, Agent, Anim, Player);
+            Stage = EVENT.EXIT;
+        }
         if (Random.Range(0, 100) < _idleChance)
         {
             NextState = new Patrol(Npc, Agent, Anim, Player);
@@ -169,6 +174,11 @@ public class Patrol : State
 
             Agent.SetDestination(GameEnvironment.Singleton.Checkpoints[_currentWaypointIndex].transform.position);
         }
+        if (CanSeePlayer())
+        {
+            NextState = new Pursue(Npc, Agent, Anim, Player);
+            Stage = EVENT.EXIT;
+        }
     }
 
     public override void Exit()
@@ -204,7 +214,7 @@ public class Pursue : State
         {
             if (CanAttackPlayer())
             {
-                NextState = new Attack(Npc, Agent, Anim, Player;
+                NextState = new Attack(Npc, Agent, Anim, Player);
                 Stage = EVENT.EXIT;
             }
             else if (!CanSeePlayer())
@@ -244,7 +254,16 @@ public class Attack : State
     
     public override void Update()
     {
-        
+        Vector3 toPlayer = Player.position - Npc.transform.position;
+        toPlayer.y = 0; // Constrain the vector the the xz plane to avoid tilting.
+        Npc.transform.rotation = Quaternion.Slerp(Npc.transform.rotation, Quaternion.LookRotation(toPlayer),
+            Time.deltaTime * _rotationSpeed);
+        if (!CanAttackPlayer())
+        {
+            NextState = new Idle(Npc, Agent, Anim, Player);
+            Stage = EVENT.EXIT;
+        }
+
     }
 
     public override void Exit()
