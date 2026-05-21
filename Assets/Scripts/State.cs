@@ -102,7 +102,6 @@ public class Idle : State
             NextState = new Patrol(Npc, Agent, Anim, Player);
             Stage = EVENT.EXIT;
         }
-        base.Update();
     }
 
     public override void Exit()
@@ -144,8 +143,6 @@ public class Patrol : State
 
             Agent.SetDestination(GameEnvironment.Singleton.Checkpoints[currentWaypointIndex].transform.position);
         }
-        
-        base.Update();
     }
 
     public override void Exit()
