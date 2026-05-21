@@ -43,7 +43,7 @@ public class State
 
     public virtual void Enter()
     {
-        Stage = EVENT.ENTER;
+        Stage = EVENT.UPDATE;
     }
 
     public virtual void Update()
