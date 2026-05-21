@@ -166,8 +166,6 @@ public class Patrol : State
     public Patrol(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
     {
         Name = STATE.PATROL;
-        agent.speed = _patrolStateSpeed;
-        agent.isStopped = false;
     }
 
     public override void Enter()
@@ -188,7 +186,9 @@ public class Patrol : State
         {
             Agent.SetDestination(GameEnvironment.Singleton.Checkpoints[_currentWaypointIndex].transform.position);
         }
-
+        
+        Agent.isStopped = false;
+        Agent.speed = _patrolStateSpeed;
         Anim.SetTrigger("isWalking");
         base.Enter();
     }
@@ -234,12 +234,12 @@ public class Pursue : State
     public Pursue(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
     {
         Name = STATE.PURSUE;
-        agent.speed = _pursueStateSpeed;
-        agent.isStopped = false;
     }
 
     public override void Enter()
     {
+        Agent.isStopped = false;
+        Agent.speed = _pursueStateSpeed;
         Anim.SetTrigger("isRunning");
         base.Enter();
     }
@@ -277,15 +277,14 @@ public class Attack : State
     public Attack(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
     {
         Name = STATE.ATTACK;
-        _shoot = npc.GetComponent<AudioSource>();   //Get Component is costly, this could be optimized by instead passing the AudioSource through.
-        agent.isStopped = false;
     }
 
     public override void Enter()
     {
-        Anim.SetTrigger("isShooting");
         Agent.isStopped = true;
+        _shoot = Npc.GetComponent<AudioSource>();   //Get Component is costly, this could be optimized by instead passing the AudioSource through.
         _shoot.Play();
+        Anim.SetTrigger("isShooting");
         base.Enter();
     }
     
@@ -305,9 +304,8 @@ public class Attack : State
 
     public override void Exit()
     {
-        Anim.ResetTrigger("isShooting");
-        Agent.isStopped = false;
         _shoot.Stop();
+        Anim.ResetTrigger("isShooting");
         base.Exit();
     }
 }
@@ -320,8 +318,6 @@ public class RunAway : State
     public RunAway(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
     {
         Name = STATE.RUNAWAY;
-        agent.speed = _runAwayStateSpeed;
-        agent.isStopped = false;
     }
 
     public override void Enter()
@@ -341,10 +337,10 @@ public class RunAway : State
         {
             Agent.SetDestination(GameEnvironment.Singleton.SafeSpots[_currentSafeSpotIndex].transform.position);
         }
-
+        
+        Agent.isStopped = false;
+        Agent.speed = _runAwayStateSpeed;
         Anim.SetTrigger("isRunning");
-        
-        
         base.Enter();
     }
     
@@ -352,7 +348,7 @@ public class RunAway : State
     {
         if (Agent.remainingDistance <= Agent.stoppingDistance)
         {
-            NextState = new Patrol(Npc, Agent, Anim, Player);
+            NextState = new Idle(Npc, Agent, Anim, Player);
             Stage = EVENT.EXIT;
         }
     }
