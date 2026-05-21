@@ -1,3 +1,4 @@
+using System.Threading;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -78,11 +79,35 @@ public class State
         }
         return this;
     }
+
+    public bool CanSeePlayer()
+    { 
+        Vector3 toPlayer = Player.position - Npc.transform.position;
+        if (toPlayer.sqrMagnitude <= _visDist*_visDist)
+        {
+            float dot = Vector3.Dot(Npc.transform.forward, toPlayer.normalized);
+            float minVisionDot = Mathf.Cos(_visAngle * Mathf.Deg2Rad);
+            
+            return dot > minVisionDot;
+        }
+        return false;
+    }
+
+    public bool CanAttackPlayer()
+    {
+        Vector3 toPlayer = Player.position - Npc.transform.position;
+        if (toPlayer.sqrMagnitude < _shootDist * _shootDist)
+        {
+            return true;
+        }
+
+        return false;
+    }
 }
 
 public class Idle : State
 {
-    private int _idleChance = 10;
+    private readonly int _idleChance = 10;
     
     public Idle(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
     {
@@ -113,17 +138,18 @@ public class Idle : State
 
 public class Patrol : State
 {
-    private int currentWaypointIndex = -1;
+    private int _currentWaypointIndex = -1;
+    private readonly int _patrolStateSpeed = 2;
     public Patrol(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
     {
         Name = STATE.PATROL;
-        agent.speed = 2;
+        agent.speed = _patrolStateSpeed;
         agent.isStopped = false;
     }
 
     public override void Enter()
     {
-        currentWaypointIndex = 0;
+        _currentWaypointIndex = 0;
         Anim.SetTrigger("isWalking");
         base.Enter();
     }
@@ -132,22 +158,100 @@ public class Patrol : State
     {
         if (Agent.remainingDistance <= Agent.stoppingDistance)
         {
-            if (currentWaypointIndex >= GameEnvironment.Singleton.Checkpoints.Count - 1)
+            if (_currentWaypointIndex >= GameEnvironment.Singleton.Checkpoints.Count - 1)
             {
-                currentWaypointIndex = 0;
+                _currentWaypointIndex = 0;
             }
             else
             {
-                currentWaypointIndex++;
+                _currentWaypointIndex++;
             }
 
-            Agent.SetDestination(GameEnvironment.Singleton.Checkpoints[currentWaypointIndex].transform.position);
+            Agent.SetDestination(GameEnvironment.Singleton.Checkpoints[_currentWaypointIndex].transform.position);
         }
     }
 
     public override void Exit()
     {
         Anim.ResetTrigger("isWalking");
+        base.Exit();
+    }
+}
+
+public class Pursue : State
+{
+    private int _currentWaypointIndex = -1;
+    private readonly int _pursueStateSpeed = 5;
+    
+    public Pursue(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
+    {
+        Name = STATE.PURSUE;
+        agent.speed = _pursueStateSpeed;
+        agent.isStopped = false;
+    }
+
+    public override void Enter()
+    {
+        _currentWaypointIndex = 0;
+        Anim.SetTrigger("isRunning");
+        base.Enter();
+    }
+    
+    public override void Update()
+    {
+        Agent.SetDestination(Player.position);
+        if (Agent.hasPath)
+        {
+            if (CanAttackPlayer())
+            {
+                NextState = new Attack(Npc, Agent, Anim, Player;
+                Stage = EVENT.EXIT;
+            }
+            else if (!CanSeePlayer())
+            {
+                NextState = new Patrol(Npc, Agent, Anim, Player);
+                Stage = EVENT.EXIT;
+            }
+        }
+    }
+
+    public override void Exit()
+    {
+        Anim.ResetTrigger("isRunning");
+        base.Exit();
+    }
+}
+
+public class Attack : State
+{
+    private float _rotationSpeed = 2.0f;
+    private AudioSource _shoot;
+    
+    public Attack(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
+    {
+        Name = STATE.ATTACK;
+        _shoot = npc.GetComponent<AudioSource>();   //Get Component is costly, this could be optimized by instead passing the AudioSource through.
+        agent.isStopped = false;
+    }
+
+    public override void Enter()
+    {
+        Anim.SetTrigger("isShooting");
+        Agent.isStopped = true;
+        _shoot.Play();
+        base.Enter();
+    }
+    
+    public override void Update()
+    {
+        
+    }
+
+    public override void Exit()
+    {
+        Anim.ResetTrigger("isShooting");
+        Agent.isStopped = false;
+        _shoot.Stop();
         base.Exit();
     }
 }
