@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.AI;
@@ -10,6 +12,7 @@ public class State
         PATROL,
         PURSUE,
         ATTACK,
+        RUNAWAY,
         SLEEP
     };
 
@@ -31,6 +34,8 @@ public class State
     private float _visDist = 10.0f;
     private float _visAngle = 30.0f;
     private float _shootDist = 7.0f;
+    private float _tagDist = 2.0f;
+    private float _tagAngle = -30.0f;
     
 
     public State(GameObject npc, NavMeshAgent agent, Animator anim, Transform player)
@@ -103,6 +108,19 @@ public class State
 
         return false;
     }
+    
+    public bool IsPlayerTagging()
+    { 
+        Vector3 toPlayer = Player.position - Npc.transform.position;
+        if (toPlayer.sqrMagnitude <= _tagDist*_tagDist)
+        {
+            float dot = Vector3.Dot(-Npc.transform.forward, toPlayer.normalized);
+            float minVisionDot = Mathf.Cos(_tagAngle * Mathf.Deg2Rad);
+            
+            return dot > minVisionDot;
+        }
+        return false;
+    }
 }
 
 public class Idle : State
@@ -154,19 +172,23 @@ public class Patrol : State
 
     public override void Enter()
     {
-        float lastDist = Mathf.Infinity;
+        float shortestDistance = Mathf.Infinity;
         for (int foundWaypointIndex = 0; foundWaypointIndex < GameEnvironment.Singleton.Checkpoints.Count; foundWaypointIndex++)
         {
             GameObject foundWaypoint = GameEnvironment.Singleton.Checkpoints[foundWaypointIndex];
             float distanceToWaypoint = Vector3.Distance(Npc.transform.position, foundWaypoint.transform.position);
-            if (distanceToWaypoint < lastDist)
+            if (distanceToWaypoint < shortestDistance)
             {
                 _currentWaypointIndex = foundWaypointIndex;
-                lastDist = distanceToWaypoint;
+                shortestDistance = distanceToWaypoint;
             }
         }
-        
-        Agent.SetDestination(GameEnvironment.Singleton.Checkpoints[_currentWaypointIndex].transform.position);
+
+        if (_currentWaypointIndex >= 0)
+        {
+            Agent.SetDestination(GameEnvironment.Singleton.Checkpoints[_currentWaypointIndex].transform.position);
+        }
+
         Anim.SetTrigger("isWalking");
         base.Enter();
     }
@@ -191,6 +213,11 @@ public class Patrol : State
             NextState = new Pursue(Npc, Agent, Anim, Player);
             Stage = EVENT.EXIT;
         }
+        else if (IsPlayerTagging())
+        {
+            NextState = new RunAway(Npc, Agent, Anim, Player);
+            Stage = EVENT.EXIT;
+        }
     }
 
     public override void Exit()
@@ -202,7 +229,6 @@ public class Patrol : State
 
 public class Pursue : State
 {
-    private int _currentWaypointIndex = -1;
     private readonly int _pursueStateSpeed = 5;
     
     public Pursue(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
@@ -214,7 +240,6 @@ public class Pursue : State
 
     public override void Enter()
     {
-        _currentWaypointIndex = 0;
         Anim.SetTrigger("isRunning");
         base.Enter();
     }
@@ -283,6 +308,58 @@ public class Attack : State
         Anim.ResetTrigger("isShooting");
         Agent.isStopped = false;
         _shoot.Stop();
+        base.Exit();
+    }
+}
+
+public class RunAway : State
+{
+    private int _currentSafeSpotIndex = -1;
+    private int _runAwayStateSpeed = 5;
+    
+    public RunAway(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
+    {
+        Name = STATE.RUNAWAY;
+        agent.speed = _runAwayStateSpeed;
+        agent.isStopped = false;
+    }
+
+    public override void Enter()
+    {
+        float shortestDistance = Mathf.Infinity;
+        for(int safeSpotIndex = 0; safeSpotIndex < GameEnvironment.Singleton.SafeSpots.Count; safeSpotIndex++)
+        {
+            float distanceToSafeSpot = Vector3.Distance(Npc.transform.position, GameEnvironment.Singleton.SafeSpots[safeSpotIndex].transform.position);
+            if (distanceToSafeSpot < shortestDistance)
+            {
+                _currentSafeSpotIndex = safeSpotIndex;
+                shortestDistance = distanceToSafeSpot;
+            }
+        }
+
+        if (_currentSafeSpotIndex >= 0)
+        {
+            Agent.SetDestination(GameEnvironment.Singleton.SafeSpots[_currentSafeSpotIndex].transform.position);
+        }
+
+        Anim.SetTrigger("isRunning");
+        
+        
+        base.Enter();
+    }
+    
+    public override void Update()
+    {
+        if (Agent.remainingDistance <= Agent.stoppingDistance)
+        {
+            NextState = new Patrol(Npc, Agent, Anim, Player);
+            Stage = EVENT.EXIT;
+        }
+    }
+
+    public override void Exit()
+    {
+        Anim.ResetTrigger("isRunning");
         base.Exit();
     }
 }
