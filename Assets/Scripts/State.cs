@@ -31,11 +31,11 @@ public class State
     protected Transform Player;
     protected State NextState;
 
-    private float _visDist = 10.0f;
-    private float _visAngle = 30.0f;
-    private float _shootDist = 7.0f;
-    private float _tagDist = 2.0f;
-    private float _tagAngle = -30.0f;
+    private readonly float _visDist = 10.0f;
+    private readonly float _visAngle = 30.0f;
+    private readonly float _shootDist = 7.0f;
+    private readonly float _tagDist = 2.0f;
+    private readonly float _tagAngle = -30.0f;
     
 
     public State(GameObject npc, NavMeshAgent agent, Animator anim, Transform player)
@@ -101,12 +101,7 @@ public class State
     public bool CanAttackPlayer()
     {
         Vector3 toPlayer = Player.position - Npc.transform.position;
-        if (toPlayer.sqrMagnitude < _shootDist * _shootDist)
-        {
-            return true;
-        }
-
-        return false;
+        return toPlayer.sqrMagnitude < _shootDist * _shootDist;
     }
     
     public bool IsPlayerTagging()
@@ -271,7 +266,7 @@ public class Pursue : State
 
 public class Attack : State
 {
-    private float _rotationSpeed = 2.0f;
+    private const float RotationSpeed = 2.0f;
     private AudioSource _shoot;
     
     public Attack(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
@@ -293,7 +288,7 @@ public class Attack : State
         Vector3 toPlayer = Player.position - Npc.transform.position;
         toPlayer.y = 0; // Constrain the vector the the xz plane to avoid tilting.
         Npc.transform.rotation = Quaternion.Slerp(Npc.transform.rotation, Quaternion.LookRotation(toPlayer),
-            Time.deltaTime * _rotationSpeed);
+            Time.deltaTime * RotationSpeed);
         if (!CanAttackPlayer())
         {
             NextState = new Idle(Npc, Agent, Anim, Player);
@@ -313,7 +308,7 @@ public class Attack : State
 public class RunAway : State
 {
     private int _currentSafeSpotIndex = -1;
-    private int _runAwayStateSpeed = 5;
+    private readonly int _runAwayStateSpeed = 5;
     
     public RunAway(GameObject npc, NavMeshAgent agent, Animator anim, Transform player) : base(npc, agent, anim, player)
     {

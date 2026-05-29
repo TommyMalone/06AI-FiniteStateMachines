@@ -3,22 +3,22 @@ using UnityEngine.AI;
 
 public class AI : MonoBehaviour
 {
-    private NavMeshAgent agent;
+    private NavMeshAgent _agent;
     private Animator _animator;
     public Transform playerTransform;
-    private State currentState;
+    private State _currentState;
     
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    private void Start()
     {
-        agent = GetComponent<NavMeshAgent>();
+        _agent = GetComponent<NavMeshAgent>();
         _animator = GetComponent<Animator>();
-        currentState = new Idle(gameObject, agent, _animator, playerTransform);
+        _currentState = new Idle(gameObject, _agent, _animator, playerTransform);
     }
 
     // Update is called once per frame
-    void Update()
+    private void Update()
     {
-        currentState = currentState.Process();
+        _currentState = _currentState.Process();
     }
 }
